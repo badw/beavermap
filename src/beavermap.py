@@ -1,19 +1,11 @@
 import numpy as np 
-
 import h5py
-import numpy as np
-import matplotlib.pyplot as plt
 import pyFAI
 import fabio
 import os
 from queue import Empty
-import math
 import tqdm 
-import numba 
 from pathos.helpers import mp as pmp
-from sys import getsizeof
-import psutil  
-
 class BeaverMap:
     def __init__(self,
                  h5_file,
