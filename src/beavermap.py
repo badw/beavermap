@@ -54,10 +54,24 @@ class BeaverMap:
             separating into "chunks" for memory efficiency default = 100
             '''
 
-            self.chunks = np.reshape(
-                np.arange(0,self.n_images,1),
-                (int(self.n_images/self.chunk_size),self.chunk_size)
-                )
+            #self.chunks = np.reshape(
+            #    np.arange(0,self.n_images,1),
+            #    (int(self.n_images/self.chunk_size),self.chunk_size)
+            #    )
+
+            self.chunks = self.data_chunker(self.n_images,self.chunk_size)
+    
+    @staticmethod        
+    def data_chunker(length,chunksize):
+        try:
+            chunks = np.reshape(
+                np.arange(0, length, 1),
+                (int(length/chunksize), chunksize)
+            )
+            return(chunks)
+        except ValueError as error:
+            print(error)
+
             
     @property
     def default_integrate_args(self):
@@ -203,12 +217,13 @@ class BeaverMap:
                     _arrmask = (res_map[i0,i1][0] >= r[0]) & (res_map[i0,i1][0] <= r[1])
                     full_data[i][i0,i1] = np.sum(res_map[i0,i1][1][_arrmask])
                 
-                out_q.put(full_data,block=True)
+                out_q.put(full_data)
 
     def integrate(
             self,
             integrate_args=None,
-            regions=[[0, 100]]
+            regions=[[0, 100]],
+            chunksize = 600
     ):
 
         if not integrate_args:
@@ -216,52 +231,59 @@ class BeaverMap:
         else:
             self.integrate_args = integrate_args
 
-        self.terminate_workers()
 
-        ctx = pmp.get_context("spawn") # seems to work better as a "spawn" but sometimes as "fork"
-        self.in_queue = ctx.Queue()
-        self.out_queue = ctx.Queue(16)
         
-        image_range = np.arange(self.n_images)
+        final_results = []
+        for runnum,image_range in enumerate(self.data_chunker(self.n_images,chunksize)):
 
-        for image in image_range: 
-            self.in_queue.put(image)           
+            self.terminate_workers()     #necessary?
 
-        self.workers = [] 
-        for _ in range(self.nworkers):
-            self.workers.append(
-                ctx.Process(
-                    target=self.integrate_worker,
-                    args=(
-                        self.in_queue,
-                        self.out_queue,
-                        self.integrate_args,
-                        regions)
+            ctx = pmp.get_context("spawn")     
+
+            self.in_queue = ctx.Queue()
+            self.out_queue = ctx.Queue() # can we combine these into one     queue?
+            #image_range = np.arange(self.n_images)    
+
+            for image in image_range: 
+                self.in_queue.put(image)               
+
+            self.workers = [] 
+            for _ in range(self.nworkers):
+                self.workers.append(
+                    ctx.Process(
+                        target=self.integrate_worker,
+                        args=(
+                            self.in_queue,
+                            self.out_queue,
+                            self.integrate_args,
+                            regions)
+                    )
                 )
-            )
-        for w in self.workers:
-            w.start()
-        
-        _bar_format = "{desc} {n_fmt}/{total_fmt}|{percentage:3.0f}%|{bar}| {elapsed}<{remaining}{postfix}"
-        total = int(
-            len(image_range)*len(image_range)/2-len(image_range)/2
-            )
-        divider = len(image_range)/total
+            for w in self.workers:
+                w.start()
+            
+            _bar_format = "{desc} {n_fmt}/{total_fmt}|{percentage:3.0f}%|{bar}| {elapsed}<    {remaining}{postfix}"
+            total = int(
+                len(image_range)*len(image_range)/2-len(image_range)/2
+                )
+            divider = len(image_range)/total    
 
-        with tqdm.tqdm(
-            total=len(image_range),
-            desc='performing integration.',
-            bar_format=_bar_format,
-            ncols=80
-            ) as pbar: 
-            results = []
-            for ii,image in enumerate(image_range):
-                results.append(
-                    self.get_result_from_queue(
-                        pbar,np.round(divider*ii)
-                        )
-                        )
+            with tqdm.tqdm(
+                total=len(image_range),
+                desc=f'performing integration.{runnum}',
+                bar_format=_bar_format,
+                ncols=80
+                ) as pbar: 
+                results = []
+                for ii,image in enumerate(image_range):
+                    results.append(
+                        self.get_result_from_queue(
+                            pbar,np.round(divider*ii)
+                            )
+                            )    
 
-        self.terminate_workers()
+            self.terminate_workers()
+
+            final_results.append(results)
         
-        return(np.array(results).sum(axis=0))
+        return(np.array(final_results).sum(axis=0))
