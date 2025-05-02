@@ -7,22 +7,22 @@ from queue import Empty
 import tqdm 
 from pathos.helpers import mp as pmp
 class BeaverMap:
-    def __init__(self,
-                 h5_file,
-                 poni_file,
-                 mask_file,
-                 chunk_size,
-                 location,
-                 nworkers,
-                 **kw):
+    def __init__(
+        self,
+            h5_file,
+            poni_file,
+            mask_file,
+            chunk_size,
+            location,
+            nworkers,
+            **kws
+    ):
         '''
         Code for easy paralellisation and analysis of Synchrotron Data from ESRF 
         '''
-
         
         os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
-        os.environ['OMP_NUM_THREADS'] = '1'
-        #print(pmp.get_start_method()) # should set context
+        #os.environ['OMP_NUM_THREADS'] = '1'
 
         self.h5_file = h5_file
         self.poni_file = poni_file
@@ -53,27 +53,28 @@ class BeaverMap:
             '''
             separating into "chunks" for memory efficiency default = 100
             '''
-            #self.chunks = np.array(
-            #    [
-            #        np.arange(0, self.n_images, 1)[cs*i:cs*(i+1)]
-            #        for i in range(self.chunk_size)
-            #        for cs in [
-            #            int(
-            #                math.ceil(self.n_images/float(self.chunk_size))
-            #            )
-            #        ]
-            #    ]
-            #)
 
             self.chunks = np.reshape(
                 np.arange(0,self.n_images,1),
                 (int(self.n_images/self.chunk_size),self.chunk_size)
                 )
-
+            
+    @property
+    def default_integrate_args(self):
+        self.integrate_args = {'npt': 10000,
+                               'correctSolidAngle': False,
+                               'error_model': 'poisson',
+                               'azimuth_range': None,
+                               'radial_range': (0, 45),  # (16.70, 17.05),
+                               'polarization_factor': 1,
+                               'method': 'full',
+                               'unit': '2th_deg',
+                               'normalization_factor': 1,
+                               }
 
     def h5file_data(self):
         return(h5py.File(self.h5_file,'r'))
-
+    
     def terminate_workers(self):
         if self.workers is not None:
             for i in range(self.nworkers):
@@ -119,7 +120,6 @@ class BeaverMap:
             with h5py.File(self.h5_file,'r') as f:
                 maximum = np.max(f[self.location][chk],axis=0)
                 out_q.put(maximum)
-
           
     def max_sum(self):
         '''
@@ -127,7 +127,7 @@ class BeaverMap:
         '''
 
         self.terminate_workers()
-        ctx = pmp.get_context('fork')
+        ctx = pmp.get_context('spawn')
         self.in_queue = ctx.Queue()
         self.out_queue = ctx.Queue()
 
@@ -151,11 +151,13 @@ class BeaverMap:
             total=self.n_images,
             desc='performing max summation. images:',
             bar_format=_bar_format,
-            ncols=100
+            ncols=80
             ) as pbar:    
             results = []
             for i in self.chunks:
-                results.append(self.get_result_from_queue(pbar,self.chunks.shape[1]))
+                results.append(
+                    self.get_result_from_queue(pbar,self.chunks.shape[1])
+                    )
 
         total = np.array(results).max(axis=0)
 
@@ -163,12 +165,26 @@ class BeaverMap:
 
         return(total)
 
-    def integrate_worker(self,in_q,out_q,args,regions):
+    def integrate_worker(
+            self,
+            in_q,
+            out_q,
+            args,
+            regions
+    ):
 
         while True:
+            ### queue memory checker here?
             image = in_q.get()
             with h5py.File(self.h5_file,'r') as f:
-                res_map = np.zeros((self.dim0,self.dim1,2,args['npt']))
+                res_map = np.zeros(
+                    (
+                        self.dim0,
+                        self.dim1,
+                        2,
+                        args['npt']
+                        )
+                        )
 
                 i0 = int(np.floor(image/self.dim1)) # check these...
                 i1 = image - self.dim1*int(np.floor(image/self.dim1))
@@ -187,55 +203,64 @@ class BeaverMap:
                     _arrmask = (res_map[i0,i1][0] >= r[0]) & (res_map[i0,i1][0] <= r[1])
                     full_data[i][i0,i1] = np.sum(res_map[i0,i1][1][_arrmask])
                 
-                out_q.put(full_data)
+                out_q.put(full_data,block=True)
 
-    def integrate(self,integrate_args,sampling=None,regions=(0,100)):
-        '''
-        a lot of the multiprocessing was adapted from AMSET - thanks Alex
-        '''
-        
-        self.terminate_workers()
-        
-        #self.dim0,self.dim1 = dimensions
+    def integrate(
+            self,
+            integrate_args=None,
+            regions=[[0, 100]]
+    ):
 
-        ctx = pmp.get_context("fork") # seems to work better as a "spawn" but sometimes as "fork"
-        self.in_queue = ctx.Queue()
-        self.out_queue = ctx.Queue()
-        
-        if sampling:
-            _arr = np.arange(self.n_images)
-            image_range = _arr[np.random.choice(len(_arr),size=sampling,replace=False)]
+        if not integrate_args:
+            self.default_integrate_args
         else:
-            image_range = np.arange(self.n_images)
+            self.integrate_args = integrate_args
 
-            
+        self.terminate_workers()
+
+        ctx = pmp.get_context("spawn") # seems to work better as a "spawn" but sometimes as "fork"
+        self.in_queue = ctx.Queue()
+        self.out_queue = ctx.Queue(16)
+        
+        image_range = np.arange(self.n_images)
+
         for image in image_range: 
             self.in_queue.put(image)           
 
         self.workers = [] 
-        for _ in range(self.nworkers): 
+        for _ in range(self.nworkers):
             self.workers.append(
                 ctx.Process(
-                target=self.integrate_worker,
-                args=(self.in_queue,self.out_queue,integrate_args,regions)
+                    target=self.integrate_worker,
+                    args=(
+                        self.in_queue,
+                        self.out_queue,
+                        self.integrate_args,
+                        regions)
                 )
-                )
+            )
         for w in self.workers:
             w.start()
         
         _bar_format = "{desc} {n_fmt}/{total_fmt}|{percentage:3.0f}%|{bar}| {elapsed}<{remaining}{postfix}"
-        total = int(len(image_range)*len(image_range)/2-len(image_range)/2)
+        total = int(
+            len(image_range)*len(image_range)/2-len(image_range)/2
+            )
         divider = len(image_range)/total
 
         with tqdm.tqdm(
             total=len(image_range),
             desc='performing integration.',
             bar_format=_bar_format,
-            ncols=100
+            ncols=80
             ) as pbar: 
             results = []
             for ii,image in enumerate(image_range):
-                results.append(self.get_result_from_queue(pbar,np.round(divider*ii)))
+                results.append(
+                    self.get_result_from_queue(
+                        pbar,np.round(divider*ii)
+                        )
+                        )
 
         self.terminate_workers()
         
