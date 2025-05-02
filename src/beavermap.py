@@ -236,9 +236,9 @@ class BeaverMap:
         final_results = []
         for runnum,image_range in enumerate(self.data_chunker(self.n_images,chunksize)):
 
-            self.terminate_workers()     #necessary?
+            #self.terminate_workers()     #necessary?
 
-            ctx = pmp.get_context("spawn")     
+            ctx = pmp.get_context("fork")     
 
             self.in_queue = ctx.Queue()
             self.out_queue = ctx.Queue() # can we combine these into one     queue?
@@ -284,6 +284,9 @@ class BeaverMap:
 
             self.terminate_workers()
 
-            final_results.extend(np.array(results).sum(axis=0))
+            final_results.extend(
+                np.array([results]).sum(axis=0)
+                )
         
         return(np.array(final_results).sum(axis=0))
+        #return(final_results)
