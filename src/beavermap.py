@@ -6,6 +6,7 @@ import os
 from queue import Empty
 import tqdm 
 from pathos.helpers import mp as pmp
+import time 
 class BeaverMap:
     def __init__(
         self,
@@ -234,7 +235,11 @@ class BeaverMap:
 
         
         final_results = []
-        for runnum,image_range in enumerate(self.data_chunker(self.n_images,chunksize)):
+        for runnum,image_range in enumerate(
+            self.data_chunker(
+                self.n_images,chunksize
+                )
+                ):
 
             #self.terminate_workers()     #necessary?
 
@@ -287,6 +292,10 @@ class BeaverMap:
             final_results.extend(
                 [np.array(results).sum(axis=0)]
                 )
+            
+            self.terminate_workers()
+
+            time.sleep(15)
         
         return(np.array(final_results).sum(axis=0))
         #return(final_results)
