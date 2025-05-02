@@ -284,6 +284,6 @@ class BeaverMap:
 
             self.terminate_workers()
 
-            final_results.append(results)
+            final_results.extend(np.array(results).sum(axis=0))
         
         return(np.array(final_results).sum(axis=0))
