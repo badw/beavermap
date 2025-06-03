@@ -314,15 +314,12 @@ class BeaverMap:
         else:
             self.integrate_args = integrate_args
 
-        #images = np.arange(self.n_images).reshape((-1,chunk_size))
+        self.regions = regions
         images = np.arange(num_images).reshape((-1,chunk_size))
-        results = tqdm_pathos.map(self._tqdm_integrate_worker,images,self.integrate_args,regions)
+        results = tqdm_pathos.map(self._tqdm_integrate_worker,images,self.integrate_args,regions,tqdm_kwargs={'ncols':600,'desc':"performing integration:"})
 
-        return(np.array(results))
-        
-        #res = []
-        #for i in res:
-        #    res.extend([np.array(i).sum(axis=0)])
-
-        #return(np.array(res).sum(axis=0))
-        
+        return(np.array(results).sum(axis=0))
+    
+    def save(self,run_data,filename='beavermap_data.npz'):
+        metadata = self.__dict__
+        np.savez(filename, features=run_data, metadata=metadata)
