@@ -59,7 +59,7 @@ class BeaverMap:
             self.mean = np.mean(f['1.1/measurement/ct34'])
             self.median = np.median(f['1.1/measurement/ct34'])
             self.max_val = np.max(f['1.1/measurement/ct34'])
-            self.min_val = np.min_val(f['1.1/measurement/ct34'])
+            self.min_val = np.min(f['1.1/measurement/ct34'])
             '''
             separating into "chunks" for memory efficiency default = 100
             '''
