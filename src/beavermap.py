@@ -214,7 +214,7 @@ class BeaverMap:
             #integrated = np.array(
             #    self.ai.integrate1d(data=data,mask=self.mask_data,**args),copy=False
             #    )[0:2]
-            integrated = np.asarray(self.integrate_function(data=data,mask=self.mask_data,**args),copy=False)[0:2]
+            integrated = np.asarray(self.integrate_function(data=data,mask=self.mask_data,**args))[0:2]
 
             full_data = np.zeros((len(regions), self.dim0, self.dim1))
 
