@@ -319,7 +319,7 @@ class BeaverMap:
             images = np.arange(self.n_images).reshape((-1,chunk_size))
         except Exception as e:
             raise AttributeError(e)
-        results = tqdm_pathos.map(self._tqdm_integrate_worker,images,self.integrate_args,regions,tqdm_kwargs={'ncols':600,'desc':"performing integration:"})
+        results = tqdm_pathos.map(self._tqdm_integrate_worker,images,self.integrate_args,regions,tqdm_kwargs={'ncols':80,'desc':"performing integration:"})
 
         return(np.array(results).sum(axis=0))
     
