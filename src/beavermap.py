@@ -256,7 +256,7 @@ class BeaverMap:
         ctx = pmp.get_context("spawn")
 
         self.in_queue = ctx.Queue()# can play around with this value
-        #self.out_queue = ctx.Queue(maxsize=10)  # can we combine these into one     queue?
+        self.out_queue = ctx.Queue()  # can we combine these into one     queue?
         image_range = np.arange(self.n_images)
 
         for image in image_range:
