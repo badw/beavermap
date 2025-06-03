@@ -7,6 +7,9 @@ from queue import Empty
 import tqdm 
 from pathos.helpers import mp as pmp
 import time 
+import psutil 
+import queue
+
 class BeaverMap:
     def __init__(
         self,
@@ -16,6 +19,8 @@ class BeaverMap:
             chunk_size,
             location,
             nworkers,
+            max_memory:int = 4000,# MB
+            reserve_memory:int=500, # MB,
             **kws
     ):
         '''
@@ -30,7 +35,18 @@ class BeaverMap:
         self.mask_file = mask_file
         self.chunk_size = chunk_size
         self.location = location
+        #cpus
         self.nworkers = nworkers if nworkers != -1 else pmp.cpu_count()
+        #memory 
+        self.estimated_memory = 1000*1024*1024 # 1gb estimated memory # need to make this depend on numpy 
+        self.total_memory = int(psutil.virtual_memory().total) # in MB 
+        self.reserve_memory = int(500 * 1024 * 1024)  # 500 MB reserve memory
+        if self.reserve_memory/1024/1024 + max_memory < self.total_memory/1024/1024:
+            self.max_memory = max_memory * 1024 * 1024  # MB -> bytes
+        else:
+            raise AttributeError(
+                f"max_memory ({max_memory}MB) + reserve_memory ({self.reserve_memory/1024/1024}MB) > total_memory ({self.total_memory/1024/1024}MB) "
+            )
         self.in_queue = None
         self.out_queue = None
         self.workers = None
@@ -61,6 +77,10 @@ class BeaverMap:
             #    )
 
             self.chunks = self.data_chunker(self.n_images,self.chunk_size)
+
+    def available_memory(self):
+        available = psutil.virtual_memory().available
+        return(available - self.reserve_memory > self.estimated_memory)
     
     @staticmethod        
     def data_chunker(length,chunksize):
@@ -90,9 +110,21 @@ class BeaverMap:
     def h5file_data(self):
         return(h5py.File(self.h5_file,'r'))
     
+    def safe_put(self,in_q,item,timeout=1.0):
+        while True: 
+            if not self.available_memory():
+                time.sleep(0.5)
+                continue
+            try:
+                in_q.put(item,block=True,timeout=timeout)
+                return
+            except queue.Full:
+                time.sleep(0.5)
+    
     def terminate_workers(self):
         if self.workers is not None:
             for i in range(self.nworkers):
+                #self.safe_put(self.in_queue,None)
                 self.in_queue.put(None)
             
             for w in self.workers:
@@ -143,7 +175,7 @@ class BeaverMap:
 
         self.terminate_workers()
         ctx = pmp.get_context('spawn')
-        self.in_queue = ctx.Queue()
+        self.in_queue = ctx.Queue()# play around with this value
         self.out_queue = ctx.Queue()
 
         for chunk in self.chunks: 
@@ -225,81 +257,58 @@ class BeaverMap:
                 out_q.put(full_data)
 
     def integrate(
-            self,
-            integrate_args=None,
-            regions=[[0, 100]],
-            chunksize = 600
-    ):
-
+            self, 
+            integrate_args=None, 
+            regions=[[0, 100]], 
+            hunksize=600
+            ):
+        
         if not integrate_args:
             self.default_integrate_args
         else:
             self.integrate_args = integrate_args
 
-
-        
         final_results = []
-        for runnum,image_range in enumerate(
-            self.data_chunker(
-                self.n_images,chunksize
+
+        ctx = pmp.get_context("spawn")
+
+        self.in_queue = ctx.Queue(maxsize=5)# can play around with this value
+        self.out_queue = ctx.Queue()  # can we combine these into one     queue?
+        image_range = np.arange(self.n_images)
+
+        for image in image_range:
+            self.safe_put(self.in_queue,image)
+            #self.in_queue.put(image)
+
+        self.workers = []
+        for _ in range(self.nworkers):
+            self.workers.append(
+                ctx.Process(
+                    target=self.integrate_worker,
+                    args=(self.in_queue, self.out_queue, self.integrate_args, regions),
                 )
-                ):
+            )
+        for w in self.workers:
+            w.start()
 
-            #self.terminate_workers()     #necessary?
+        _bar_format = "{desc} {n_fmt}/{total_fmt}|{percentage:3.0f}%|{bar}| {elapsed}<    {remaining}{postfix}"
+        total = int(len(image_range) * len(image_range) / 2 - len(image_range) / 2)
+        divider = len(image_range) / total
 
-            ctx = pmp.get_context("fork")     
+        with tqdm.tqdm(
+            total=len(image_range),
+            desc=f"performing integration",
+            bar_format=_bar_format,
+            ncols=80,
+        ) as pbar:
+            results = []
+            for ii, image in enumerate(image_range):
+                results.append(self.get_result_from_queue(pbar, np.round(divider * ii)))
 
-            self.in_queue = ctx.Queue()
-            self.out_queue = ctx.Queue() # can we combine these into one     queue?
-            #image_range = np.arange(self.n_images)    
+        self.terminate_workers()
 
-            for image in image_range: 
-                self.in_queue.put(image)               
+        final_results.extend([np.array(results).sum(axis=0)])
 
-            self.workers = [] 
-            for _ in range(self.nworkers):
-                self.workers.append(
-                    ctx.Process(
-                        target=self.integrate_worker,
-                        args=(
-                            self.in_queue,
-                            self.out_queue,
-                            self.integrate_args,
-                            regions)
-                    )
-                )
-            for w in self.workers:
-                w.start()
-            
-            _bar_format = "{desc} {n_fmt}/{total_fmt}|{percentage:3.0f}%|{bar}| {elapsed}<    {remaining}{postfix}"
-            total = int(
-                len(image_range)*len(image_range)/2-len(image_range)/2
-                )
-            divider = len(image_range)/total    
+        self.terminate_workers()
 
-            with tqdm.tqdm(
-                total=len(image_range),
-                desc=f'performing integration.{runnum}',
-                bar_format=_bar_format,
-                ncols=80
-                ) as pbar: 
-                results = []
-                for ii,image in enumerate(image_range):
-                    results.append(
-                        self.get_result_from_queue(
-                            pbar,np.round(divider*ii)
-                            )
-                            )    
-
-            self.terminate_workers()
-
-            final_results.extend(
-                [np.array(results).sum(axis=0)]
-                )
-            
-            self.terminate_workers()
-
-            time.sleep(15)
-        
-        return(np.array(final_results).sum(axis=0))
-        #return(final_results)
+        return np.array(final_results).sum(axis=0)
