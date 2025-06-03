@@ -65,13 +65,8 @@ def func2():
     with h5py.File(bm.h5_file,'r') as f:
         data = f[bm.location][image]
 
-    integrate = np.array(bm.ai.integrate1d(data=data,mask=bm.mask_data,**bm.integrate_args))[0:2]
+    integrate = np.array(bm.ai.integrate1d(data=data,mask=bm.mask_data,**bm.integrate_args),copy=False)[0:2]
 
-    np.save('temp.npy',integrate)
-
-@profile
-def func3():
-    integrate = np.load('temp.npy')
     image = 100
     i0 = int(np.floor(image/bm.dim1))
     i1 = image - bm.dim1 * int(np.floor(image / bm.dim1))    
@@ -80,8 +75,16 @@ def func3():
     for i, r in enumerate(ranges):
         _arrmask = (integrate[0] >= r[0]) & (integrate[0]     <= r[1])
         full_data_2[i][i0, i1] = np.sum(integrate[1]    [_arrmask])    
+    del integrate
 
     print(full_data_2.nbytes/1024/1024)
+
+@profile
+def func3():
+    gc.collect()
+    for i in range(1000):
+        time.sleep(0.01)
+
 if __name__ == '__main__':
     bm = BeaverMap(
         h5_file = '../data/al2o3_m330p0/al2o3_m330p0.h5',
@@ -92,4 +95,5 @@ if __name__ == '__main__':
         nworkers = 1,
     )
     bm.default_integrate_args
+    func2()
     func3()
