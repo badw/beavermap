@@ -8,7 +8,6 @@ import tqdm
 from pathos.helpers import mp as pmp
 import time 
 import psutil 
-import queue
 
 class BeaverMap:
     def __init__(
@@ -118,7 +117,7 @@ class BeaverMap:
             try:
                 in_q.put(item,block=True,timeout=timeout)
                 return
-            except queue.Full:
+            except in_q.full():
                 time.sleep(0.5)
     
     def terminate_workers(self):
@@ -219,7 +218,6 @@ class BeaverMap:
             args,
             regions
     ):
-
         while True:
             ### queue memory checker here?
             image = in_q.get()
@@ -272,7 +270,7 @@ class BeaverMap:
 
         ctx = pmp.get_context("spawn")
 
-        self.in_queue = ctx.Queue(maxsize=5)# can play around with this value
+        self.in_queue = ctx.Queue()# can play around with this value
         self.out_queue = ctx.Queue()  # can we combine these into one     queue?
         image_range = np.arange(self.n_images)
 
