@@ -255,7 +255,8 @@ class BeaverMap:
                     try:
                         out_q.put(full_data,block=True,timeout=1)
                         break
-                    except out_q.full():
+                    except Exception:
+                        
                         print('currently full')
                         time.sleep(1)
 
