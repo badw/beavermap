@@ -17,8 +17,6 @@ class BeaverMap:
             chunk_size,
             location,
             nworkers,
-            max_memory:int = 4000,# MB
-            reserve_memory:int=500, # MB,
             **kws
     ):
         '''
@@ -35,16 +33,7 @@ class BeaverMap:
         self.location = location
         #cpus
         self.nworkers = nworkers if nworkers != -1 else pmp.cpu_count()
-        #memory 
-        self.estimated_memory = 1000*1024*1024 # 1gb estimated memory # need to make this depend on numpy 
-        self.total_memory = int(psutil.virtual_memory().total) # in MB 
-        self.reserve_memory = int(500 * 1024 * 1024)  # 500 MB reserve memory
-        if self.reserve_memory/1024/1024 + max_memory < self.total_memory/1024/1024:
-            self.max_memory = max_memory * 1024 * 1024  # MB -> bytes
-        else:
-            raise AttributeError(
-                f"max_memory ({max_memory}MB) + reserve_memory ({self.reserve_memory/1024/1024}MB) > total_memory ({self.total_memory/1024/1024}MB) "
-            )
+
         self.in_queue = None
         self.out_queue = None
         self.workers = None
