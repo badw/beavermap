@@ -307,20 +307,22 @@ class BeaverMap:
 
         return(full_data)
     
-    def _tqdm_runner(self,chunk_size=100,regions=[[0,100]],integrate_args=None):
+    def _tqdm_runner(self,num_images = 200,chunk_size=100,regions=[[0,100]],integrate_args=None):
 
         if not integrate_args:
             self.default_integrate_args
         else:
             self.integrate_args = integrate_args
 
-        images = np.arange(self.n_images).reshape((-1,chunk_size))
-
+        #images = np.arange(self.n_images).reshape((-1,chunk_size))
+        images = np.arange(num_images).reshape((-1,chunk_size))
         results = tqdm_pathos.map(self._tqdm_integrate_worker,images,self.integrate_args,regions)
-        
-        res = []
-        for i in res:
-            res.extend([np.array(i).sum(axis=0)])
 
-        return(np.array(res).sum(axis=0))
+        return(np.array(results))
+        
+        #res = []
+        #for i in res:
+        #    res.extend([np.array(i).sum(axis=0)])
+
+        #return(np.array(res).sum(axis=0))
         
