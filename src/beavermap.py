@@ -117,7 +117,8 @@ class BeaverMap:
             try:
                 in_q.put(item,block=True,timeout=timeout)
                 return
-            except queue.Full:
+            except Exception as e :
+                print(e)
                 time.sleep(0.5)
     
     def terminate_workers(self):
@@ -255,7 +256,7 @@ class BeaverMap:
                     try:
                         out_q.put(full_data,block=True,timeout=1)
                         break
-                    except queue.Full:
+                    except Exception:
                         print('currently full')
                         time.sleep(1)
 
