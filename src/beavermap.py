@@ -45,6 +45,7 @@ class BeaverMap:
 
         try:
             self.ai = pyFAI.load(self.poni_file)
+            self.integrate_function = self.ai.integrate1d
         except Exception as e:
             raise RuntimeError(e)
         
@@ -194,7 +195,7 @@ class BeaverMap:
             in_q,
             out_q,
             args,
-            regions
+            regions,
     ):
         while True:
             ### queue memory checker here?
@@ -210,9 +211,10 @@ class BeaverMap:
                 #        data=f[self.location][image], mask=self.mask_data, **args
                 #    )[0:2]
                 #)
-            integrated = np.array(
-                self.ai.integrate1d(data=data,mask=self.mask_data,**args)
-                )[0:2]
+            #integrated = np.array(
+            #    self.ai.integrate1d(data=data,mask=self.mask_data,**args),copy=False
+            #    )[0:2]
+            integrated = np.array(self.integrate_function(data=data,mask=self.mask_data,**args),copy=False)[0:2]
 
             full_data = np.zeros((len(regions), self.dim0, self.dim1))
 
@@ -221,7 +223,7 @@ class BeaverMap:
                 full_data[i][i0, i1] = np.sum(integrated[1][_arrmask])
 
             del integrated 
-            
+
             out_q.put(full_data)
 
     def integrate(
