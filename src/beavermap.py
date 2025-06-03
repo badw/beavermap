@@ -307,7 +307,7 @@ class BeaverMap:
 
         return(full_data)
     
-    def _tqdm_runner(self,chunk_size=100,regions=[[0,100]]):
+    def _tqdm_runner(self,chunk_size=100,regions=[[0,100]],integrate_args=None):
 
         if not integrate_args:
             self.default_integrate_args
