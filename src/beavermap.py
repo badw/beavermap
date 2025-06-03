@@ -3,10 +3,9 @@ import h5py
 import pyFAI
 import fabio
 import os
-from queue import Empty, Full
+from queue import Empty
 import tqdm 
 from pathos.helpers import mp as pmp
-import time 
 import psutil 
 import tqdm_pathos
 class BeaverMap:
@@ -109,18 +108,6 @@ class BeaverMap:
     def h5file_data(self):
         return(h5py.File(self.h5_file,'r'))
     
-    def safe_put(self,in_q,item,timeout=1.0):
-        while True: 
-            if not self.available_memory():
-                time.sleep(0.5)
-                continue
-            try:
-                in_q.put(item,block=True,timeout=timeout)
-                return
-            except Full:
-                print('currently_full')
-                time.sleep(0.5)
-    
     def terminate_workers(self):
         if self.workers is not None:
             for i in range(self.nworkers):
@@ -174,7 +161,7 @@ class BeaverMap:
         '''
 
         self.terminate_workers()
-        ctx = pmp.get_context('spawn')
+        ctx = pmp.get_context('fork')
         self.in_queue = ctx.Queue()# play around with this value
         self.out_queue = ctx.Queue()
 
@@ -222,9 +209,11 @@ class BeaverMap:
         while True:
             ### queue memory checker here?
             image = in_q.get()
+
             with h5py.File(self.h5_file, "r") as f:
                 i0 = int(np.floor(image / self.dim1))  # check these...
                 i1 = image - self.dim1 * int(np.floor(image / self.dim1))
+                
                 integrated = np.array(
                     self.ai.integrate1d(
                         data=f[self.location][image], mask=self.mask_data, **args
@@ -251,14 +240,14 @@ class BeaverMap:
 
         final_results = []
 
-        ctx = pmp.get_context("spawn")
+        ctx = pmp.get_context("fork")
 
-        self.in_queue = ctx.Queue()# can play around with this value
-        self.out_queue = ctx.Queue()  # can we combine these into one     queue?
+        self.in_queue = ctx.Queue()
+        self.out_queue = ctx.Queue()
+
         image_range = np.arange(self.n_images)
 
         for image in image_range:
-            #self.safe_put(self.in_queue,image)
             self.in_queue.put(image)
 
         self.workers = []
