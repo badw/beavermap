@@ -55,14 +55,14 @@ class BeaverMap:
             self.dimensions = f[self.location].shape[1:]
             self.dim0 = f['/1.1/technique/dim0'][()]
             self.dim1 = f['/1.1/technique/dim1'][()]
+
+            self.mean = np.mean(f['1.1/measurement/ct34'])
+            self.median = np.median(f['1.1/measurement/ct34'])
+            self.max_val = np.max(f['1.1/measurement/ct34'])
+            self.min_val = np.min_val(f['1.1/measurement/ct34'])
             '''
             separating into "chunks" for memory efficiency default = 100
             '''
-
-            #self.chunks = np.reshape(
-            #    np.arange(0,self.n_images,1),
-            #    (int(self.n_images/self.chunk_size),self.chunk_size)
-            #    )
 
             self.chunks = self.data_chunker(self.n_images,self.chunk_size)
 
