@@ -279,8 +279,8 @@ class BeaverMap:
         image_range = np.arange(self.n_images)
 
         for image in image_range:
-            self.safe_put(self.in_queue,image)
-            #self.in_queue.put(image)
+            #self.safe_put(self.in_queue,image)
+            self.in_queue.put(image)
 
         self.workers = []
         for _ in range(self.nworkers):
