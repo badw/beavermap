@@ -92,6 +92,7 @@ class BeaverMap:
                                'method': 'full',
                                'unit': '2th_deg',
                                'normalization_factor': 1,
+                               'safe':False
                                }
 
     def h5file_data(self):
@@ -199,21 +200,28 @@ class BeaverMap:
             ### queue memory checker here?
             image = in_q.get()
 
+            i0 = int(np.floor(image / self.dim1))  # check these...
+            i1 = image - self.dim1 * int(np.floor(image / self.dim1))
+
             with h5py.File(self.h5_file, "r") as f:
-                i0 = int(np.floor(image / self.dim1))  # check these...
-                i1 = image - self.dim1 * int(np.floor(image / self.dim1))
-                
-                integrated = np.array(
-                    self.ai.integrate1d(
-                        data=f[self.location][image], mask=self.mask_data, **args
-                    )[0:2]
-                )
+                data = f[self.location][image]
+                #integrated = np.array(
+                #    self.ai.integrate1d(
+                #        data=f[self.location][image], mask=self.mask_data, **args
+                #    )[0:2]
+                #)
+            integrated = np.array(
+                self.ai.integrate1d(data=data,mask=self.mask_data,**args)
+                )[0:2]
 
-                full_data = np.zeros((len(regions), self.dim0, self.dim1))
+            full_data = np.zeros((len(regions), self.dim0, self.dim1))
 
-                for i, r in enumerate(regions):
-                    _arrmask = (integrated[0] >= r[0]) & (integrated[0] <= r[1])
-                    full_data[i][i0, i1] = np.sum(integrated[1][_arrmask])
+            for i, r in enumerate(regions):
+                _arrmask = (integrated[0] >= r[0]) & (integrated[0] <= r[1])
+                full_data[i][i0, i1] = np.sum(integrated[1][_arrmask])
+
+            del integrated 
+            
             out_q.put(full_data)
 
     def integrate(
