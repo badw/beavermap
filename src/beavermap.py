@@ -251,14 +251,18 @@ class BeaverMap:
                 for i,r in enumerate(regions):
                     _arrmask = (res_map[i0,i1][0] >= r[0]) & (res_map[i0,i1][0] <= r[1])
                     full_data[i][i0,i1] = np.sum(res_map[i0,i1][1][_arrmask])
-                
-                out_q.put(full_data)
+                while True:
+                    try:
+                        out_q.put(full_data,block=True,timeout=1)
+                        break
+                    except out_q.full():
+                        print('currently full')
+                        time.sleep(1)
 
     def integrate(
             self, 
             integrate_args=None, 
             regions=[[0, 100]], 
-            hunksize=600
             ):
         
         if not integrate_args:
@@ -270,8 +274,8 @@ class BeaverMap:
 
         ctx = pmp.get_context("spawn")
 
-        self.in_queue = ctx.Queue()# can play around with this value
-        self.out_queue = ctx.Queue()  # can we combine these into one     queue?
+        self.in_queue = ctx.Queue(maxsize=10)# can play around with this value
+        self.out_queue = ctx.Queue(maxsize=10)  # can we combine these into one     queue?
         image_range = np.arange(self.n_images)
 
         for image in image_range:
