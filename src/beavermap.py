@@ -281,3 +281,46 @@ class BeaverMap:
         self.terminate_workers()
 
         return np.array(final_results).sum(axis=0)
+    
+
+    def _tqdm_integrate_worker(
+            self,
+            image_chunk,
+            args,
+            regions,
+    ):
+        full_data = np.zeros((len(regions), self.dim0, self.dim1))
+        for image in image_chunk:
+            i0 = int(np.floor(image / self.dim1))  # check these...
+            i1 = image - self.dim1 * int(np.floor(image / self.dim1))
+
+            with h5py.File(self.h5_file, "r") as f:
+                data = f[self.location][image]
+
+            integrated = np.asarray(self.integrate_function(data=data,mask=self.mask_data,**args))[0:2]
+
+            for i, r in enumerate(regions):
+                _arrmask = (integrated[0] >= r[0]) & (integrated[0] <= r[1])
+                full_data[i][i0, i1] = np.sum(integrated[1][_arrmask])
+
+            del integrated
+
+        return(full_data)
+    
+    def _tqdm_runner(self,chunk_size=100,regions=[[0,100]]):
+
+        if not integrate_args:
+            self.default_integrate_args
+        else:
+            self.integrate_args = integrate_args
+
+        images = np.arange(self.n_images).reshape((-1,chunk_size))
+
+        results = tqdm_pathos.map(self._tqdm_integrate_worker,images,self.integrate_args,regions)
+        
+        res = []
+        for i in res:
+            res.extend([np.array(i).sum(axis=0)])
+
+        return(np.array(res).sum(axis=0))
+        
