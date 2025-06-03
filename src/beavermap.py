@@ -8,6 +8,7 @@ import tqdm
 from pathos.helpers import mp as pmp
 import time 
 import psutil 
+import tqdm_pathos
 class BeaverMap:
     def __init__(
         self,
@@ -276,7 +277,7 @@ class BeaverMap:
         ctx = pmp.get_context("spawn")
 
         self.in_queue = ctx.Queue()# can play around with this value
-        self.out_queue = ctx.Queue(maxsize=10)  # can we combine these into one     queue?
+        #self.out_queue = ctx.Queue(maxsize=10)  # can we combine these into one     queue?
         image_range = np.arange(self.n_images)
 
         for image in image_range:
@@ -315,3 +316,42 @@ class BeaverMap:
         self.terminate_workers()
 
         return np.array(final_results).sum(axis=0)
+    
+
+    def _pathos_tqdm_integrate_worker(
+            self,
+            image,
+            args,
+            regions
+    ):
+            ### queue memory checker here?
+        with h5py.File(self.h5_file,'r') as f:
+            res_map = np.zeros((self.dim0, self.dim1, 2, args["npt"]))
+
+            i0 = int(np.floor(image / self.dim1))  # check these...
+            i1 = image - self.dim1 * int(np.floor(image / self.dim1))
+
+            res_map[i0, i1] = np.array(
+                self.ai.integrate1d(
+                    data=f[self.location][image], mask=self.mask_data, **args
+                )[0:2]
+            )
+
+        full_data = np.zeros((len(regions), self.dim0, self.dim1))
+
+        for i, r in enumerate(regions):
+            _arrmask = (res_map[i0, i1][0] >= r[0]) & (res_map[i0, i1][0] <= r[1])
+            full_data[i][i0, i1] = np.sum(res_map[i0, i1][1][_arrmask])
+        return full_data
+    
+    def _pathos_tqdm_integrate(self,integrate_args,regions):
+        pool = pmp.Pool(maxtasksperchild=10)
+        results = tqdm_pathos.map(
+            self._pathos_tqdm_integrate_worker,
+            iterable=np.arange(self.n_images),
+            args=integrate_args,
+            regions=regions,
+            n_cpus=self.nworkers,
+            pool=pool
+            
+        )
