@@ -3,12 +3,11 @@ import h5py
 import pyFAI
 import fabio
 import os
-from queue import Empty
+from queue import Empty, Full
 import tqdm 
 from pathos.helpers import mp as pmp
 import time 
 import psutil 
-import queue
 class BeaverMap:
     def __init__(
         self,
@@ -117,8 +116,8 @@ class BeaverMap:
             try:
                 in_q.put(item,block=True,timeout=timeout)
                 return
-            except Exception as e :
-                print(e)
+            except Full:
+                print('currently_full')
                 time.sleep(0.5)
     
     def terminate_workers(self):
@@ -256,7 +255,7 @@ class BeaverMap:
                     try:
                         out_q.put(full_data,block=True,timeout=1)
                         break
-                    except Exception:
+                    except Full:
                         print('currently full')
                         time.sleep(1)
 
