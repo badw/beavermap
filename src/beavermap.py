@@ -222,10 +222,10 @@ class BeaverMap:
         while True:
             ### queue memory checker here?
             image = in_q.get()
-            res_map = np.zeros((self.dim0, self.dim1, 2, args["npt"]))
-            i0 = int(np.floor(image / self.dim1))  # check these...
-            i1 = image - self.dim1 * int(np.floor(image / self.dim1))
             with h5py.File(self.h5_file, "r") as f:
+                res_map = np.zeros((self.dim0, self.dim1, 2, args["npt"]))
+                i0 = int(np.floor(image / self.dim1))  # check these...
+                i1 = image - self.dim1 * int(np.floor(image / self.dim1))
                 res_map[i0, i1] = np.array(
                     self.ai.integrate1d(
                         data=f[self.location][image], mask=self.mask_data, **args
@@ -237,7 +237,7 @@ class BeaverMap:
             for i, r in enumerate(regions):
                 _arrmask = (res_map[i0, i1][0] >= r[0]) & (res_map[i0, i1][0] <= r[1])
                 full_data[i][i0, i1] = np.sum(res_map[i0, i1][1][_arrmask])
-
+            res_map = None
             out_q.put(full_data)
 
     def integrate(
