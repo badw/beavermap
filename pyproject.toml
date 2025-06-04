@@ -31,7 +31,7 @@ dependencies = [
 "h5py",
 "pyFAI",
 "fabio",
-"pathos",
+"tqdm_pathos",
 "pytest"]
 
 [project.optional-dependencies]

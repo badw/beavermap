@@ -1,0 +1,42 @@
+import numpy as np 
+from beavermap import BeaverMap
+import pyFAI 
+import fabio
+from scipy.signal import find_peaks
+
+
+class BeaverMapPeakFinder:
+
+    def __init__(self,BeaverMap):
+        self.max_sum = BeaverMap.max_sum_results
+        self.metadata = BeaverMap.__dict__
+
+        try:
+            self.mask_data = np.array(fabio.open(self.metadata['mask_file']).data)
+        except Exception as e:
+            raise RuntimeError(e)
+
+    def integrate_max_sum(self):
+        result = pyFAI.load(self.metadata['poni_file']).integrate1d(
+            self.max_sum,
+            mask = self.mask_data,
+            **self.metadata['integrate_args']) 
+        
+        return(result)
+    
+    def peak_finder(self,integrated_data,**scipy_kwargs):
+        if integrated_data is None:
+            integrated_data = self.integrate_max_sum()
+
+        peaks = find_peaks(integrated_data[1],**scipy_kwargs)
+
+        return(integrated_data[0][peaks[0]])
+
+        
+        
+
+    
+bmpf = BeaverMapPeakFinder(bm)
+
+res = bmpf.integrate_max_sum()
+peaks = bmpf.peak_finder(res,**{'prominence':10})    

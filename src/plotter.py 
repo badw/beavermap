@@ -1,0 +1,98 @@
+from beavermap import BeaverMap 
+from typing import Union, Optional
+import numpy as np 
+
+class BeaverMapPlotter:
+    def __init__(
+            self,
+            BeaverMap:Union[list,dict,str,BeaverMap],
+            mapping: Union[np.ndarray,list]
+            ):
+        """
+        need to add list of dicts
+        """
+        
+        self.mapping = np.array(mapping)
+
+        if isinstance(BeaverMap,list):
+            if not isinstance(BeaverMap[0],dict):
+                if not isinstance(BeaverMap[0],str):
+                    #list of beavermap objects that is not a path or dict
+                    self.max_sum_arr = np.zeros(self.mapping.shape).tolist()
+                    self.integrate_arr = np.zeros(self.mapping.shape).tolist()
+                    self.metadata_arr = np.zeros(self.mapping.shape).tolist()
+                    for i,item in enumerate(BeaverMap):
+                        pos = np.where(self.mapping==i)
+                        if hasattr(item, 'max_sum_results'):
+                            if len(pos) == 2:
+                                self.max_sum_arr[pos[0][0]][pos[1][0]] = item.max_sum_results
+                            else:
+                                self.max_sum_arr[pos[0][0]] = item.max_sum_results
+                        if hasattr(item,'integrate_results'):
+                            if len(pos) == 2:
+                                self.integrate_arr[pos[0][0]][pos[1][0]] = item.integrate_results
+                                self.metadata_arr[pos[0][0]][pos[1][0]] = item.__dict__
+                            else:
+                                self.integrate_arr[pos[0][0]] = item.integrate_results
+                                self.metadata_arr[pos[0][0]] = item.__dict__
+                else:
+                    #list of beavermap strings (paths to .npz files) that is not a Beavermap object or dict
+                    self.max_sum_arr = None #np.zeros(self.mapping.shape).tolist() # currently not doing max_sum_arr for these files
+                    self.integrate_arr = np.zeros(self.mapping.shape).tolist()
+                    self.metadata_arr = np.zeros(self.mapping.shape).tolist()
+                    for i,item in enumerate(BeaverMap):
+                        pos = np.where(self.mapping==i)
+                        data = np.load(item,allow_pickle=True)
+                        _arr = data['features']
+                        _metadata = data['metadata'].item()
+                        if len(pos) == 2:
+                            self.integrate_arr[pos[0][0]][pos[1][0]] = _arr
+                            self.metadata_arr[pos[0][0]][pos[1][0]] = _metadata
+                        else:
+                            self.integrate_arr[pos[0][0]] = _arr
+                            self.metadata_arr[pos[0][0]] = _metadata
+
+        elif isinstance(BeaverMap,dict):
+            if 'max_sum_results' in BeaverMap:
+                self.max_sum_arr = [BeaverMap['max_sum_results']]
+            if 'integrate_results' in BeaverMap:
+                self.integrate_arr = [BeaverMap['integrate_results']]
+            self.metadata_arr = [BeaverMap]
+
+        else:
+            if hasattr(BeaverMap, 'max_sum_results'):
+                self.max_sum_arr = [BeaverMap.max_sum_results]
+            if hasattr(BeaverMap,'integrate_results'):
+                self.integrate_arr = [BeaverMap.integrate_results]
+
+            self.metadata_arr = [BeaverMap.__dict__]
+
+    def normalise_data(self,normalise='mean'):
+        arr = np.array(self.integrate_arr)
+
+        means = np.array(
+            [x[normalise] for x in np.array(self.metadata_arr).flatten()]
+            )
+        means = means.reshape(self.mapping.shape)
+        
+        for i,ii in enumerate(arr):
+            for j,jj in enumerate(ii):
+                for r in range(arr.shape[2]):
+                    arr[i][j][r] /= means[i][j]
+        return(arr)
+    
+    def combine_patches(
+            self,
+            normalise:str = 'mean'
+            ):
+        if normalise:
+            arr = self.normalise_data(normalise=normalise)
+        else:
+            arr = np.array(self.integrate_arr)
+        combined_data = []
+        for i in range(arr.shape[2]):
+            _arr = arr[:,:,i,:]
+            t1 = np.hstack(_arr)
+            combined_data.append(np.hstack(t1))
+    
+        return(np.array(combined_data))
