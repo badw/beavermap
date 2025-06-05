@@ -13,6 +13,8 @@
 
 coding credit: Ola G. Grendal, Benjamin A. D. Williamson
 
+testing credit: Sofie B. Hårberg
+
 ### Installation 
 
 ```
