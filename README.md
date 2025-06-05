@@ -18,13 +18,11 @@ pip install .
 
 pyFAI [https://github.com/silx-kit/pyFAI](https://github.com/silx-kit/pyFAI)
 
-requires `.poni` file containing calibration data for the detector 
+requires either `.poni` file or dict containing calibration data for the detector 
 
 e.g. 
 
 ```
-# Nota: C-Order, 1 refers to the Y axis, 2 to the X axis
-# Calibration done at Thu Nov 14 15:49:57 2024
 poni_version: 2.1
 Detector: Eiger4M
 Detector_config: {"orientation": 3}
@@ -37,6 +35,7 @@ Rot3: 0.0
 Wavelength: 8.265613228880018e-11
 ```
 
+and a `mask_file` or mask_data in a np.array 
 
 ### Examples 
 

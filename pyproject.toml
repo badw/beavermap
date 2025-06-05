@@ -38,14 +38,14 @@ dependencies = [
 dev = ["pytest>=7.4.0", "pytest-cov>=3.0.0"]
 
 [project.urls]
-repository = "https://github.com/badw/reactit.git"
-changelog = "https://github.com/badw/reactit/tree/main/CHANGELOG.md"
+repository = "https://github.com/badw/beavermap.git"
+changelog = "https://github.com/badw/beavermap/tree/main/CHANGELOG.md"
 
 [tool.setuptools.package-data]
 template = ["py.typed"]
 
 [tool.pyright]
-include = ["reactit"]
+include = ["beavermap"]
 exclude = ["**/__pycache__"]
 
 [tool.pytest.ini_options]
