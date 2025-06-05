@@ -42,3 +42,5 @@ and a `mask_file` or mask_data in a np.array
 Example Jupyter Notebooks are included in: 
 
 `./examples/`
+
+> ! NB BeaverMap is still a work in progress - bugs and errors may occur
