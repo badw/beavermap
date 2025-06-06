@@ -78,7 +78,7 @@ lint.unfixable = [
   "F841", # Removes unused variables
 ]
 lint.pydocstyle.convention = "numpy"
-lint.isort.known-first-party = ["reactit"]
+lint.isort.known-first-party = ["beavermap"]
 lint.isort.required-imports = ["from __future__ import annotations"]
 lint.isort.split-on-trailing-comma=false
 extend-include = ["*.ipynb"]

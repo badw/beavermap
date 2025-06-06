@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib 
 import warnings 
 warnings.simplefilter('ignore')
 
@@ -13,13 +14,15 @@ class BeaverMapPlotter:
     def __init__(
             self,
             BeaverMap:Optional[Union[list,dict,str,BeaverMap]],
-            mapping: Optional[Union[np.ndarray,list]]
+            mapping: Optional[Union[np.ndarray,list]],
+            normalise_patches_method:Optional[Union['median','mean',None]],
             ):
         """
         need to add list of dicts
         """
         
         self.mapping = np.array(mapping)
+        self.normalise_patches_method = normalise_patches_method
 
         if isinstance(BeaverMap,list):
             if not isinstance(BeaverMap[0],dict):
@@ -87,11 +90,11 @@ class BeaverMapPlotter:
         else:
             raise AttributeError('not all data have the same two theta regions!')
         
-    def normalise_patches(self,normalise='mean'):
+    def normalise_patches_by(self):
         arr = np.array(self.integrate_arr)
 
         means = np.array(
-            [x[normalise] for x in np.array(self.metadata_arr).flatten()]
+            [x[self.normalise_patches_method] for x in np.array(self.metadata_arr).flatten()]
             )
         means = means.reshape(self.mapping.shape)
         
@@ -103,10 +106,9 @@ class BeaverMapPlotter:
     
     def combine_patches(
             self,
-            normalise:str,#Optional('str'),
             ):
-        if normalise:
-            arr = self.normalise_patches(normalise=normalise)
+        if self.normalise_patches_method:
+            arr = self.normalise_patches_by()
         else:
             arr = np.array(self.integrate_arr)
         combined_data = []
@@ -121,12 +123,11 @@ class BeaverMapPlotter:
             self,
             index,
             patches,
-            normalise_patches,
-            normalise_plots,
+            normalise_plots_by,
             normalise_index_over_all
             ):
         # add more normalisation options 
-        if normalise_plots and normalise_plots == 'percentile':
+        if normalise_plots_by and normalise_plots_by == 'percentile':
             if not index:
                 # normalise over all the patches
                 norm = Normalize(
@@ -144,7 +145,22 @@ class BeaverMapPlotter:
                         )
         return(norm)
     
-    def get_colourbar(self,fig,ax,im):
+    def add_colourbar(
+            self,
+            fig,
+            ax,
+            im,
+            show_axes:bool=False):
+        """
+        generates a colourbar 
+        Args:
+        fig: maptlotlib figure 
+        ax: matplotlib.axes.Axes
+        im: matplotlib.imshow
+        show_axes:bool = False ; show ticks and ticklabels 
+        Returns:
+        matplotlib.colorbar 
+        """
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         cax.set_yticklabels([])
@@ -153,45 +169,78 @@ class BeaverMapPlotter:
         cax.set_xticks([])
         cax.spines[['top', 'right','bottom','left']].set_visible(False)
         cbar = fig.colorbar(im,ax=cax)
-        cbar.ax.set_yticklabels([])
-        cbar.ax.set_yticks([])
-
+        if not show_axes:
+            cbar.ax.set_yticklabels([])
+            cbar.ax.set_yticks([])
         return(cbar)
     
-    def plot_combined(self,
-                      index:int = None,#Optional(int) = None,
-                      normalise_patches:str = 'median',#Optional(str) = None,
-                      normalise_plots:str = 'percentile',#Optional(str) = 'percentile',
-                      normalise_index_over_all:bool = True,
-                      cmap:str ='magma',
-                      figsize:tuple =(10,10),
-                      nrows:int= 7,
-                      gridspec_kw = {'wspace':0.1, 'hspace':0.1},
-                      scale_bar:bool = False,
-                      scale_bar_kws:dict = {'size':50,'label':'50 $\\mu$m','loc': 'lower center','pad':0.1,'color':'tab:grey','frameon':False,'size_vertical':1},
-                      colourbar:bool = True,
-                      annotate = True,
-                      **kws):
+    def get_subplot_grid(
+            self,
+            length:int,
+            ncols:Optional[int],
+            nrows:Optional[int]
+            ):
         
-        combined_patches = self.combine_patches(normalise=normalise_patches)
+        if not any([ncols,nrows]):
+            nrows = int(np.ceil(np.sqrt(length)))
+            ncols = nrows 
+        elif not ncols: 
+            ncols = int(np.ceil(length/nrows))
+        elif not nrows: 
+            nrows = int(np.ceil(length/ncols))
+        else:
+            if not ncols * nrows > length:
+                raise ValueError(f'ncols  and nrows ({ncols} * {nrows} = {ncols * nrows}) < length ({length})')
+            
+        return(ncols,nrows)
+
+    def plot_combined(
+        self,
+        nrows: Optional[int] = None ,
+        ncols: Optional[int] = None ,
+        index: Optional[int] = None,  
+        normalise_plots_method: Optional[Union['percentile','mean','median',None]] = 'percentile', 
+        normalise_index_over_all: bool = True,
+        cmap: str = "magma",
+        figsize: tuple = (10, 10),
+        scale_bar: bool = False,
+        colourbar: bool = True,
+        annotate: bool = True,
+        gridspec_kw={"wspace": 0.1, "hspace": 0.1},
+        scale_bar_kws: dict = {
+            "size": 50,
+            "label": "50 $\\mu$m",
+            "loc": "lower center",
+            "pad": 0.1,
+            "color": "tab:grey",
+            "frameon": False,
+            "size_vertical": 1,
+        },
+        aspect='auto'
+                ):
+        
+        combined_patches = self.combine_patches()
 
         norm = self.get_matplotlib_norm(
             index,
             combined_patches,
-            normalise_patches,
-            normalise_plots,
+            normalise_plots_method,
             normalise_index_over_all
             )
-            # add more 
-        ncols,_nrows = (int(np.round(combined_patches.shape[0]/nrows)),nrows)
+
         
         if not index: 
-            fig, axes = plt.subplots(ncols=ncols,nrows=_nrows,figsize=figsize,gridspec_kw=gridspec_kw)
+            #define nrows and ncols - defaults to a squareish grid, but can specify nrows or ncols if needed
+            ncols,nrows = self.get_subplot_grid(length = len(self.two_theta_regions),ncols=ncols,nrows=nrows)
+
+            fig, axes = plt.subplots(
+                ncols=ncols,nrows=nrows,figsize=figsize,gridspec_kw=gridspec_kw
+                )
 
             for i,patch in enumerate(combined_patches):
-                im= axes.flatten()[i].imshow(patch,norm=norm,cmap=cmap)  # Example plot
+                im= axes.flatten()[i].imshow(patch,norm=norm,cmap=cmap,aspect=aspect)  # Example plot
                 if colourbar:
-                    cbar = self.get_colourbar(ax=axes.flatten()[i],fig=fig,im=im)
+                    cbar = self.add_colourbar(ax=axes.flatten()[i],fig=fig,im=im)
 
                 axes.flatten()[i]
                 axes.flatten()[i].set_yticklabels([])
@@ -215,7 +264,7 @@ class BeaverMapPlotter:
         else:
             fig,axes = plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
 
-            im = axes.imshow(combined_patches[index],norm=norm,cmap=cmap)
+            im = axes.imshow(combined_patches[index],norm=norm,cmap=cmap,aspect=aspect)
             axes.set_yticklabels([])
             axes.set_xticklabels([])
             axes.set_yticks([])
@@ -225,7 +274,7 @@ class BeaverMapPlotter:
                 axes.add_artist(scalebar)
 
             if colourbar:
-                cbar = self.get_colourbar(ax=axes,fig=fig,im=im)
+                cbar = self.add_colourbar(ax=axes,fig=fig,im=im)
 
             if annotate:
                 text = self.two_theta_regions[index]
