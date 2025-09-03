@@ -9,7 +9,7 @@ version = "0.0.1"
 readme = "README.md"
 license = { text = "BSD-3" }
 authors = [{ name = "Benjamin A. D. Williamson", email = "benjamin.williamson@ntnu.no" }]
-keywords = ["Chemistry", "Organic Chemistry", "Reactions","Materials Science"]
+keywords = ["Chemistry", "ESRF", "Synchrotron","Materials Science"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",

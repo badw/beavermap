@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import matplotlib 
 import warnings 
 warnings.simplefilter('ignore')
 
@@ -50,6 +49,7 @@ class BeaverMapPlotter:
                     self.max_sum_arr = None #np.zeros(self.mapping.shape).tolist() # currently not doing max_sum_arr for these files
                     self.integrate_arr = np.zeros(self.mapping.shape).tolist()
                     self.metadata_arr = np.zeros(self.mapping.shape).tolist()
+                    
                     for i,item in enumerate(BeaverMap):
                         pos = np.where(self.mapping==i)
                         data = np.load(item,allow_pickle=True)
@@ -196,6 +196,8 @@ class BeaverMapPlotter:
 
     def plot_combined(
         self,
+        figure: Optional[plt.Figure] = None,
+        ax: Optional[plt.Axes] = None,
         nrows: Optional[int] = None ,
         ncols: Optional[int] = None ,
         index: Optional[int] = None,  
@@ -232,10 +234,9 @@ class BeaverMapPlotter:
         if not index: 
             #define nrows and ncols - defaults to a squareish grid, but can specify nrows or ncols if needed
             ncols,nrows = self.get_subplot_grid(length = len(self.two_theta_regions),ncols=ncols,nrows=nrows)
-
             fig, axes = plt.subplots(
-                ncols=ncols,nrows=nrows,figsize=figsize,gridspec_kw=gridspec_kw
-                )
+                    ncols=ncols,nrows=nrows,figsize=figsize,gridspec_kw=gridspec_kw
+                    )
 
             for i,patch in enumerate(combined_patches):
                 im= axes.flatten()[i].imshow(patch,norm=norm,cmap=cmap,aspect=aspect)  # Example plot
@@ -262,7 +263,12 @@ class BeaverMapPlotter:
 
             
         else:
-            fig,axes = plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
+            if not ax:
+                fig,axes = plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
+            else:
+                axes = ax
+                fig = figure
+                
 
             im = axes.imshow(combined_patches[index],norm=norm,cmap=cmap,aspect=aspect)
             axes.set_yticklabels([])
@@ -274,7 +280,10 @@ class BeaverMapPlotter:
                 axes.add_artist(scalebar)
 
             if colourbar:
-                cbar = self.add_colourbar(ax=axes,fig=fig,im=im)
+                if fig:
+                    cbar = self.add_colourbar(ax=axes,fig=fig,im=im)
+                else:
+                    Warning('no figure provided, colourbar will not be added')
 
             if annotate:
                 text = self.two_theta_regions[index]
