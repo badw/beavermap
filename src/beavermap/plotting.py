@@ -142,7 +142,6 @@ class BeaverMapPlotter:
                     )
             else:
                 if not normalise_index_over_all:
-
                     norm = Normalize(
                         vmin=np.percentile(patches[index],vmin),
                         vmax=np.percentile(patches[index],vmax)
