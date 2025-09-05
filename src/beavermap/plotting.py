@@ -170,17 +170,19 @@ class BeaverMapPlotter:
         Returns:
         matplotlib.colorbar 
         """
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        cax.set_yticklabels([])
-        cax.set_xticklabels([])
-        cax.set_yticks([])
-        cax.set_xticks([])
-        cax.spines[['top', 'right','bottom','left']].set_visible(False)
-        cbar = fig.colorbar(im,ax=cax)
+        #divider = make_axes_locatable(ax)
+        #cax = divider.append_axes("right", size="5%", pad=0.05)
+        #cax.set_yticklabels([])
+        #cax.set_xticklabels([])
+        #cax.set_yticks([])
+        #cax.set_xticks([])
+        #cax.spines[['top', 'right','bottom','left']].set_visible(False)
+        #cbar = fig.colorbar(im,ax=cax,fraction=0.05,pad=0.05)
+        cbar = fig.colorbar(im,ax=ax,fraction=0.057,pad=0.05)
+
         if not show_axes:
-            cbar.ax.set_yticklabels([])
-            cbar.ax.set_yticks([])
+            cbar.ax.set_yticklabels(['min','max'])
+            cbar.ax.set_yticks([cbar.vmin,cbar.vmax])
         return(cbar)
     
     def get_subplot_grid(
@@ -220,7 +222,7 @@ class BeaverMapPlotter:
         scale_bar: bool = False,
         colourbar: bool = True,
         annotate: bool = True,
-        gridspec_kw={"wspace": 0.1, "hspace": 0.1},
+        gridspec_kw={"wspace": 0.2, "hspace": 0.1},
         scale_bar_kws: dict = {
             "size": 50,
             "label": "50 $\\mu$m",
@@ -266,13 +268,13 @@ class BeaverMapPlotter:
                     ncols=ncols,
                     nrows=nrows,
                     figsize=figsize,
-                    gridspec_kw=gridspec_kw
+                    gridspec_kw=gridspec_kw,
+                    #layout='constrained'
                     )
 
             for i,patch in enumerate(combined_patches):
-                im= axes.flatten()[i].imshow(patch,norm=norm,cmap=cmap,aspect=aspect,**imshow_kws)  # Example plot
-                if colourbar:
-                    cbar = self.add_colourbar(ax=axes.flatten()[i],fig=fig,im=im)
+                im = axes.flatten()[i].imshow(patch,norm=norm,cmap=cmap,aspect=aspect,**imshow_kws)  # Example plot
+
 
                 axes.flatten()[i]
                 axes.flatten()[i].set_yticklabels([])
@@ -290,6 +292,9 @@ class BeaverMapPlotter:
                         text = self.two_theta_regions[i]
                     axes.flatten()[i].set_ylabel(text)
                     axes.flatten()[i].set_xlabel(i)
+
+                if colourbar:
+                    cbar = self.add_colourbar(ax=axes.flatten()[i],fig=fig,im=im)
 
             # Remove any unused subplots
             for j in range(combined_patches.shape[0], len(axes.flatten())):
@@ -323,4 +328,4 @@ class BeaverMapPlotter:
                 text = self.two_theta_regions[index]
                 axes.set_ylabel(text)
 
-        return(fig,axes)
+        return(fig,axes,cbar)
