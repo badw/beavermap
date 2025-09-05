@@ -248,7 +248,10 @@ class BeaverMapPlotter:
             #define nrows and ncols - defaults to a squareish grid, but can specify nrows or ncols if needed
             ncols,nrows = self.get_subplot_grid(length = len(self.two_theta_regions),ncols=ncols,nrows=nrows)
             fig, axes = plt.subplots(
-                    ncols=ncols,nrows=nrows,figsize=figsize,gridspec_kw=gridspec_kw
+                    ncols=ncols,
+                    nrows=nrows,
+                    figsize=figsize,
+                    gridspec_kw=gridspec_kw
                     )
 
             for i,patch in enumerate(combined_patches):
