@@ -283,8 +283,11 @@ class BeaverMapPlotter:
                     scalebar = AnchoredSizeBar(axes.flatten()[i].transData, **scale_bar_kws)
                     axes.flatten()[i].add_artist(scalebar)
                 
-                if annotate:
-                    text = self.two_theta_regions[i]
+                if annotate: #
+                    if sum_indexes:
+                        text = str(np.array(self.two_theta_regions)[sum_indexes[i]])
+                    else:
+                        text = self.two_theta_regions[i]
                     axes.flatten()[i].set_ylabel(text)
                     axes.flatten()[i].set_xlabel(i)
 
