@@ -210,6 +210,7 @@ class BeaverMapPlotter:
         nrows: Optional[int] = None ,
         ncols: Optional[int] = None ,
         index: Optional[int] = None,  
+        sum_indexes:Optional[dict] = None,
         normalise_plots_method: Optional[Union['percentile','mean','median',None]] = 'percentile', 
         normalise_index_over_all: bool = True,
         vmin:Optional[float] = None,
@@ -244,7 +245,21 @@ class BeaverMapPlotter:
             vmax=vmax
             )
 
-        if not index: 
+        if not index:
+            if sum_indexes:
+                summed_indexes = [] 
+                for new_index,_patches in sum_indexes.items(): #should be new index : list of indexes to sum 
+                    summed_indexes.append(np.sum(combined_patches[_patches],axis=0))
+                combined_patches = np.array(summed_indexes)
+
+                norm = self.get_matplotlib_norm(
+                    index,
+                    combined_patches,
+                    normalise_plots_method,
+                    normalise_index_over_all,
+                    vmin=vmin,
+                    vmax=vmax,
+                )
             #define nrows and ncols - defaults to a squareish grid, but can specify nrows or ncols if needed
             ncols,nrows = self.get_subplot_grid(length = len(self.two_theta_regions),ncols=ncols,nrows=nrows)
             fig, axes = plt.subplots(
