@@ -124,24 +124,33 @@ class BeaverMapPlotter:
             index,
             patches,
             normalise_plots_by,
-            normalise_index_over_all
+            normalise_index_over_all,
+            vmin:Optional[float] = None,
+            vmax:Optional[float] = None,
             ):
         # add more normalisation options 
         if normalise_plots_by and normalise_plots_by == 'percentile':
+            if not vmin:
+                vmin = 10
+            if not vmax:
+                vmax = 90
             if not index:
                 # normalise over all the patches
                 norm = Normalize(
-                    vmin=np.percentile(patches,10),vmax=np.percentile(patches,90)
+                    vmin=np.percentile(patches,vmin),
+                    vmax=np.percentile(patches,vmax)
                     )
             else:
                 if not normalise_index_over_all:
+
                     norm = Normalize(
-                        vmin=np.percentile(patches[index],10),
-                        vmax=np.percentile(patches[index],90)
+                        vmin=np.percentile(patches[index],vmin),
+                        vmax=np.percentile(patches[index],vmax)
                     )
                 else:
                     norm = Normalize(
-                        vmin=np.percentile(patches,10),vmax=np.percentile(patches,90)
+                        vmin=np.percentile(patches,vmin),
+                        vmax=np.percentile(patches,vmax)
                         )
         return(norm)
     
@@ -203,6 +212,8 @@ class BeaverMapPlotter:
         index: Optional[int] = None,  
         normalise_plots_method: Optional[Union['percentile','mean','median',None]] = 'percentile', 
         normalise_index_over_all: bool = True,
+        vmin:Optional[float] = None,
+        vmax:Optional[float] = None,
         cmap: str = "magma",
         figsize: tuple = (10, 10),
         scale_bar: bool = False,
@@ -218,8 +229,9 @@ class BeaverMapPlotter:
             "frameon": False,
             "size_vertical": 1,
         },
-        aspect='auto'
-                ):
+        aspect='auto',
+        imshow_kws:dict = {}
+    ):
         
         combined_patches = self.combine_patches()
 
@@ -227,10 +239,11 @@ class BeaverMapPlotter:
             index,
             combined_patches,
             normalise_plots_method,
-            normalise_index_over_all
+            normalise_index_over_all,
+            vmin=vmin,
+            vmax=vmax
             )
 
-        
         if not index: 
             #define nrows and ncols - defaults to a squareish grid, but can specify nrows or ncols if needed
             ncols,nrows = self.get_subplot_grid(length = len(self.two_theta_regions),ncols=ncols,nrows=nrows)
@@ -239,7 +252,7 @@ class BeaverMapPlotter:
                     )
 
             for i,patch in enumerate(combined_patches):
-                im= axes.flatten()[i].imshow(patch,norm=norm,cmap=cmap,aspect=aspect)  # Example plot
+                im= axes.flatten()[i].imshow(patch,norm=norm,cmap=cmap,aspect=aspect,**imshow_kws)  # Example plot
                 if colourbar:
                     cbar = self.add_colourbar(ax=axes.flatten()[i],fig=fig,im=im)
 
